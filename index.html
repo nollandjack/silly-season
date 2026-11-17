@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Silly Season Session</title>
 <meta name="description" content="Sign up for a dish at the Silly Season Session">
+<meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎄</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -42,6 +43,16 @@
   h1 span { color: var(--gold); }
   .tag { display: inline-block; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); padding: 7px 14px; border-radius: 999px; font-weight: 800; font-size: 14px; }
 
+  .invite { background: var(--cream); color: var(--ink); border-radius: var(--radius); padding: 16px; margin: 16px 0 4px; text-align: left; box-shadow: 0 8px 24px rgba(0,0,0,.18); border-top: 6px solid var(--berry); }
+  .invite .lead { margin: 0 0 12px; font-size: 15px; line-height: 1.45; }
+  .facts { display: grid; gap: 8px; }
+  .fact { display: flex; gap: 10px; align-items: flex-start; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; color: inherit; text-decoration: none; font-size: 14px; line-height: 1.35; }
+  a.fact { border-color: #c5e3cf; background: var(--mint-soft); }
+  .fact .ico { font-size: 22px; line-height: 1; }
+  .fact small { display: block; color: var(--muted); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  .fact b { display: block; font-size: 16px; }
+  .order { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; font-size: 14px; line-height: 1.4; }
+  .partners { margin: 10px 0 0; font-weight: 800; color: var(--pine-2); font-size: 14px; }
   .spread { background: rgba(255,255,255,.08); border: 1px dashed rgba(255,255,255,.3); border-radius: var(--radius); padding: 12px; margin: 14px 0 6px; min-height: 76px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; }
   .spread .hint { color: rgba(255,255,255,.75); font-size: 14px; }
   .food { font-size: 30px; display: inline-block; animation: bob 2.6s ease-in-out infinite; }
@@ -121,6 +132,21 @@
     <div class="tree" aria-hidden="true">🎄</div>
     <h1>Silly Season <span>Session</span></h1>
     <div class="tag">Bring your best 🏆 every dish gets voted on and ranked</div>
+    <section class="invite" aria-label="Party details">
+      <p class="lead">Durk the halls! A cheeky evening of dinner, drinks and games to take us straight back to the Christmas magic of our childhoods.</p>
+      <div class="facts">
+        <div class="fact"><span class="ico">📅</span><span><small>When</small><b>Sunday 6 December, from 3pm</b></span></div>
+        <a class="fact" href="https://www.google.com/maps/search/?api=1&query=233+Victoria+St+Ashfield+NSW" target="_blank" rel="noopener"><span class="ico">📍</span><span><small>Where (tap for map)</small><b>233 Victoria St, Ashfield</b></span></a>
+        <div class="fact"><span class="ico">👗</span><span><small>Dress code</small><b>Nowhere to Wear It</b>Your most festive, fabulous outfit, the one you've never had anywhere to wear</span></div>
+      </div>
+      <ul class="order">
+        <li>🍽 Bring a plate. Bragging rights go to the best dish</li>
+        <li>🍷 Bring your own drinks. Themed drinks will be served and <b>The Grinch</b> returns</li>
+        <li>🎲 Bring your competitive spirit. Friendships may be tested</li>
+        <li>🏆 A champion will be crowned. Yule live</li>
+      </ul>
+      <p class="partners">Partners welcome, the more the merrier 🎅</p>
+    </section>
     <div class="spread" id="spread" aria-label="Dishes on the table so far"><span class="hint">The table is empty. Be the first to bring something 🍽️</span></div>
     <p class="steps">1. Add any dietary needs next to your name<br>2. Tap an empty spot to bring a dish or two</p>
   </header>
