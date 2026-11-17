@@ -814,7 +814,7 @@ const COURSES = [
   { id: 'entrees', emoji: '🥨', short: 'Entree', col: '#e4573f' },
   { id: 'mains', emoji: '🍗', short: 'Main', col: '#3fa66b' },
   { id: 'desserts', emoji: '🍰', short: 'Dessert', col: '#f2c14e' },
-  { id: 'cocktail', emoji: '🍹', short: 'Drink', col: '#4f8fe0' }
+  { id: 'cocktail', emoji: '🍹', short: 'Cocktail', plural: 'Cocktail', col: '#4f8fe0' }
 ];
 const W = 400, H = 300, G = 238;
 const OB = 26, OM = 19, OH = 14, FB = 23, FM = 16.5, FH = 12.5;
@@ -1102,10 +1102,11 @@ function countdownTree(c, x) {
 }
 function sign(c, x, co) {
   c.fillStyle = '#6b4528'; c.fillRect(x - 1.5, G - 30, 3, 32);
-  c.font = `13px ${FONT}`; const w = c.measureText(co.short + 's').width + 28;
+  const signText = co.plural || co.short + 's';
+  c.font = `13px ${FONT}`; const w = c.measureText(signText).width + 28;
   c.fillStyle = '#8a5a34'; c.beginPath(); c.roundRect ? c.roundRect(x - w / 2, G - 46, w, 18, 3) : c.rect(x - w / 2, G - 46, w, 18); c.fill();
   c.fillStyle = '#fff'; c.fillRect(x - w / 2, G - 47, w, 2.5);
-  c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fdf2df'; c.fillText(`${co.emoji} ${co.short}s`, x, G - 36.5);
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fdf2df'; c.fillText(`${co.emoji} ${signText}`, x, G - 36.5);
 }
 function clip(c, s, max) { if (c.measureText(s).width <= max) return s; while (s.length > 1 && c.measureText(s + '…').width > max) s = s.slice(0, -1); return s + '…'; }
 // Splits a dish name over up to three short lines so the whole name shows above the snowman.
