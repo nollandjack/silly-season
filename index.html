@@ -1187,7 +1187,7 @@ function draw(c) {
   for (const p of S.snow) { const x = ((p.x - cam * .3 * p.z) % W + W) % W; c.globalAlpha = .55 + .45 * p.z; c.fillStyle = '#fff'; c.beginPath(); c.arc(x, p.y, p.r, 0, 7); c.fill(); }
   c.globalAlpha = 1;
   if (S.cap > 0) text(c, 'A whole field of snow, and no one to share it with.', W / 2, 30, 17, '#e9f0fa', S.cap);
-  if (S.title > 0) { const n = L.out.length + (S.justLook ? 1 : 0); c.shadowColor = 'rgba(10,16,40,.7)'; c.shadowBlur = 8;
+  if (S.title > 0) { const n = new Set(L.out.map(o => String(o.name || '').trim().split(/\s+/)[0].toLowerCase())).size + (S.justLook ? 1 : 0); c.shadowColor = 'rgba(10,16,40,.7)'; c.shadowBlur = 8;
     text(c, S.T - S.cheersT < 2.4 ? 'Cheers! 🥂' : n <= 1 ? 'First one here! 🎄' : `Now there are ${n}.`, W / 2, 54, 28, '#fff', S.title); c.shadowBlur = 0; }
   if (S.hintA > 0 && S.hint) { const cx0 = S.scene === 'choose' ? 150 : W / 2; c.globalAlpha = S.hintA * .75; c.fillStyle = '#fff'; c.font = `15px ${FONT}`;
     const w = c.measureText(S.hint).width + 22; c.beginPath(); c.roundRect ? c.roundRect(cx0 - w / 2, 268, w, 24, 12) : c.rect(cx0 - w / 2, 268, w, 24); c.fill(); c.globalAlpha = 1;
