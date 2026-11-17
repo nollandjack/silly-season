@@ -10,7 +10,7 @@ const TIME_ZONE = 'Australia/Sydney';
 const SECTIONS = [
   { key: 'entrees', match: 'entrees', label: 'Entrees and snacks', veg: true },
   { key: 'mains', match: 'mains', label: 'Mains', veg: true },
-  { key: 'desserts', match: 'desserts', label: 'Desserts', veg: false },
+  { key: 'desserts', match: 'desserts', label: 'Desserts', veg: true },
   { key: 'cocktail', match: 'cocktail', label: 'Group cocktail', veg: false }
 ];
 
@@ -171,7 +171,7 @@ function ask_(req) {
   if (!question) return { ok: false, error: 'Ask a question first' };
   const st = readState_();
   const taken = st.sections.map(s =>
-    s.label + ': ' + (s.slots.filter(x => x.dish).map(x => x.dish + (x.veg ? ' (veg: ' + x.veg + ')' : '')).join(', ') || 'nothing yet') +
+    s.label + ': ' + (s.slots.filter(x => x.dish).map(x => x.dish + (x.veg ? ' (diet tags: ' + (/^y$/i.test(x.veg) ? 'Vegetarian' : x.veg) + ')' : '')).join(', ') || 'nothing yet') +
     ' [' + s.slots.filter(x => !x.name && !x.dish).length + ' of ' + s.slots.length + ' slots free]'
   ).join('\n');
   const diets = st.guests.filter(g => g.diet).map(g => g.name + ': ' + g.diet).join('\n') || 'none listed';

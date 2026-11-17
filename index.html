@@ -77,7 +77,12 @@
   .card.red .row.taken { background: var(--berry-soft); border-color: #efc3bf; }
   .card.green .row.taken { background: var(--mint-soft); border-color: #c5e3cf; }
   .pill { font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: var(--pine-2); color: #fff; flex: none; }
-  .pill.no { background: #d8d2c4; color: var(--ink); }
+  .pills { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; max-width: 92px; flex: none; }
+  .tags { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tags button { padding: 11px 10px; border-radius: 12px; border: 1px solid #d9ccb2; background: #fff; font: 800 14px Nunito, sans-serif; cursor: pointer; color: var(--ink); text-align: left; }
+  .tags button[aria-pressed="true"] { background: var(--pine-2); color: #fff; border-color: var(--pine-2); }
+  .clash { display: none; margin-top: 10px; background: #fff4d6; border: 1px solid #f0d68a; color: #5b4300; border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.4; }
+  .count { display: inline-block; margin-top: 6px; background: var(--berry); color: #fff; font-weight: 800; font-size: 13px; padding: 4px 10px; border-radius: 999px; }
   .note { margin: 10px 14px 0; color: var(--muted); font-size: 14px; font-weight: 600; }
   .guests { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px; }
   @media (min-width: 480px) { .guests { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -138,7 +143,7 @@
     <section class="invite" aria-label="Party details">
       <p class="lead">Durk the halls! A cheeky evening of dinner, drinks and games to take us straight back to the Christmas magic of our childhoods.</p>
       <div class="facts">
-        <div class="fact"><span class="ico">📅</span><span><small>When</small><b>Sunday 6 December, from 3pm</b></span></div>
+        <div class="fact"><span class="ico">📅</span><span><small>When</small><b>Sunday 6 December, from 3pm</b><span class="count" id="countdown" aria-live="off"></span></span></div>
         <a class="fact" href="https://www.google.com/maps/search/?api=1&query=233+Victoria+St+Ashfield+NSW" target="_blank" rel="noopener"><span class="ico">📍</span><span><small>Where (tap for map)</small><b>233 Victoria St, Ashfield</b></span></a>
         <div class="fact"><span class="ico">👗</span><span><small>Dress code</small><b>Nowhere to Wear It</b>Your most festive, fabulous outfit, the one you've never had anywhere to wear</span></div>
       </div>
@@ -258,9 +263,12 @@ function render() {
         main.append(el('div', 'who', 'Tap to bring something'));
       }
       b.append(el('span', 'num', String(i + 1)), main);
-      if (filled && s.veg && slot.veg) {
-        const yes = /^y/i.test(slot.veg);
-        b.append(el('span', 'pill' + (yes ? '' : ' no'), yes ? 'Veg' : 'Not veg'));
+      const slotTags = filled && s.veg ? parseTags(slot.veg) : [];
+      if (slotTags.length) {
+        const p = el('span', 'pills');
+        TAGS.filter(tg => slotTags.includes(tg.name) && !(tg.name === 'Vegetarian' && slotTags.includes('Vegan')))
+          .forEach(tg => { const pill = el('span', 'pill', tg.short); pill.title = tg.name; p.append(pill); });
+        b.append(p);
       }
       if (filled && slot.dish) b.append(el('span', 'emo', slot.emoji || '🍽️'));
       b.addEventListener('click', (ev) => openSlot(s, i, ev));
@@ -382,18 +390,36 @@ function openSlot(section, index, ev) {
     dish.value = slot.dish || '';
     sh.append(field(section.key === 'cocktail' ? 'What you\'re bringing for it' : 'Your dish', dish));
 
-    let veg = slot.veg || '';
+    // Heads-up when the dish looks like one someone else already claimed.
+    const clash = el('div', 'clash');
+    clash.setAttribute('role', 'status');
+    const checkClash = () => {
+      const hits = findClashes(dish.value, section.key, index);
+      clash.replaceChildren();
+      if (!hits.length) { clash.style.display = 'none'; return; }
+      const who = hits.slice(0, 2).map(h => (h.name || 'Someone') + ' is bringing ' + h.dish).join(', and ');
+      clash.append(el('b', null, '👀 Heads up! '), document.createTextNode(who + '. You can still save, just making sure we don\'t double up.'));
+      clash.style.display = 'block';
+    };
+    dish.addEventListener('input', () => { clearTimeout(checkClash.t); checkClash.t = setTimeout(checkClash, 250); });
+    sh.append(clash);
+    checkClash();
+
+    let tags = parseTags(slot.veg);
     if (section.veg) {
-      sh.append(el('label', null, 'Is it vegetarian?'));
-      const t = el('div', 'toggle');
-      const yes = el('button', null, '🥦 Yes');
-      const no = el('button', null, '🥩 No');
-      yes.type = no.type = 'button';
-      const paint = () => { yes.classList.toggle('on', /^y/i.test(veg)); no.classList.toggle('on', /^n/i.test(veg)); };
-      yes.onclick = () => { veg = 'Y'; paint(); };
-      no.onclick = () => { veg = 'N'; paint(); };
-      paint();
-      t.append(yes, no);
+      sh.append(el('label', null, 'Diet tags (tap any that apply)'));
+      const t = el('div', 'tags');
+      TAGS.forEach(tag => {
+        const b = el('button', null, tag.icon + ' ' + tag.name);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', tags.includes(tag.name) ? 'true' : 'false');
+        b.onclick = () => {
+          tags = tags.includes(tag.name) ? tags.filter(x => x !== tag.name) : tags.concat(tag.name);
+          if (tag.name === 'Vegan' && tags.includes('Vegan') && !tags.includes('Vegetarian')) tags.push('Vegetarian');
+          t.querySelectorAll('button').forEach((btn, k) => btn.setAttribute('aria-pressed', tags.includes(TAGS[k].name) ? 'true' : 'false'));
+        };
+        t.append(b);
+      });
       sh.append(t);
     }
 
@@ -415,7 +441,7 @@ function openSlot(section, index, ev) {
     go.onclick = () => {
       if (!name.value.trim()) { err.textContent = 'Add your name first'; return; }
       if (!dish.value.trim()) { err.textContent = 'Tell everyone what you\'re bringing'; return; }
-      save({ name: name.value, dish: dish.value, veg: section.veg ? veg : '' }, go, err, true);
+      save({ name: name.value, dish: dish.value, veg: section.veg ? TAGS.map(x => x.name).filter(n => tags.includes(n)).join(', ') : '' }, go, err, true);
     };
     actions.append(go);
     sh.append(err, actions);
@@ -444,6 +470,41 @@ function openSlot(section, index, ev) {
       }
     }
   });
+}
+
+const TAGS = [
+  { name: 'Vegetarian', short: 'Veg', icon: '🥦' },
+  { name: 'Vegan', short: 'Vegan', icon: '🌱' },
+  { name: 'Gluten free', short: 'GF', icon: '🌾' },
+  { name: 'Dairy free', short: 'DF', icon: '🥛' }
+];
+
+// Reads the Sheet's diet column. Older entries are just Y or N for vegetarian.
+function parseTags(v) {
+  const s = String(v || '').trim();
+  if (/^y(es)?$/i.test(s)) return ['Vegetarian'];
+  const lower = s.toLowerCase();
+  return TAGS.map(t => t.name).filter(n => lower.includes(n.toLowerCase()) ||
+    (n === 'Gluten free' && /\bgf\b/.test(lower)) || (n === 'Dairy free' && /\bdf\b/.test(lower)) ||
+    (n === 'Vegetarian' && /\bveg\b/.test(lower)));
+}
+
+const STOP = new Set(['the', 'and', 'with', 'for', 'some', 'homemade', 'home', 'made', 'famous', 'mum', 'mums', 'nan', 'nans', 'style', 'classic', 'big', 'mini', 'easy', 'special', 'surprise', 'suprise', 'dish', 'bottle', 'bag', 'box', 'plate', 'tray', 'bowl', 'fresh', 'my', 'our', 'your', 'bit']);
+const SYN = { pav: 'pavlova', pavs: 'pavlova', pavlovas: 'pavlova', choc: 'chocolate', prawns: 'prawn', chips: 'chip', crisps: 'chip', sangas: 'sandwich', sangers: 'sandwich', parma: 'parmigiana', parmagiana: 'parmigiana', parmy: 'parmigiana', lasagne: 'lasagna', tiramisu: 'tiramisu', cheesecakes: 'cheesecake' };
+function dishWords(text) {
+  return String(text || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)
+    .map(w => SYN[w] || (w.length > 4 && w.endsWith('s') ? w.slice(0, -1) : w))
+    .filter(w => w.length >= 3 && !STOP.has(w));
+}
+function findClashes(text, sectionKey, index) {
+  const mine = new Set(dishWords(text));
+  if (!mine.size) return [];
+  const hits = [];
+  state.sections.forEach(s => s.slots.forEach((x, i) => {
+    if (!x.dish || (s.key === sectionKey && i === index)) return;
+    if (dishWords(x.dish).some(w => mine.has(w))) hits.push(x);
+  }));
+  return hits;
 }
 
 function isNoDiet(d) { return /^(none|nil|no|n\/a|nothing|no dietary needs)\.?$/i.test(String(d || '').trim()); }
@@ -565,6 +626,21 @@ $('askBtn').addEventListener('click', openAsk);
     });
     requestAnimationFrame(tick);
   })(0);
+})();
+
+// Countdown to 3pm Sunday 6 December, Sydney time (AEDT, UTC+11).
+(function countdown() {
+  const start = new Date('2026-12-06T15:00:00+11:00').getTime();
+  const out = $('countdown');
+  const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+  function tick() {
+    const ms = start - Date.now();
+    if (ms <= 0) { out.textContent = ms > -12 * 3600e3 ? 'It\'s party time 🎉' : 'What a night 🎄'; return; }
+    const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+    out.textContent = '⏳ Starts in ' + (d ? plural(d, 'day') + ', ' + plural(h, 'hour') : h ? plural(h, 'hour') + ', ' + plural(m, 'minute') : plural(Math.max(m, 1), 'minute'));
+  }
+  tick();
+  setInterval(tick, 30000);
 })();
 
 load();
