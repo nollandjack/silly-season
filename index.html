@@ -9,7 +9,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎄</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Nunito:wght@400;600;800&family=Patrick+Hand&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Nunito:wght@400;600;800&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --pine: #123d2b;
@@ -137,11 +137,11 @@
   /* ===== Esme's night-sky game style ===== */
   :root { --night: #0e1530; --panel: #17204a; --panel2: #1d2858; --line2: #2a3668; --snow: #e9f0fa; --muted2: #9eaed2; }
   body { background: var(--night); color: var(--snow); }
-  h1, .card h2, .sheet h3 { font-family: 'Patrick Hand', 'Comic Neue', cursive; font-weight: 400; letter-spacing: 0; }
-  h1 { font-size: 44px; }
+  h1, .card h2, .sheet h3 { font-family: 'Fredoka', Nunito, sans-serif; font-weight: 600; letter-spacing: 0; }
+  h1 { font-size: 40px; }
   h1 span { color: #e4573f; }
-  .card h2 { font-size: 26px; }
-  .sheet h3 { font-size: 28px; }
+  .card h2 { font-size: 22px; }
+  .sheet h3 { font-size: 24px; }
   nav.jump { background: linear-gradient(var(--night) 78%, transparent); }
   .card, .invite, .sheet { background: var(--panel); color: var(--snow); border: 1px solid var(--line2); }
   .invite { border-top: 6px solid #e4573f; }
@@ -185,8 +185,8 @@
   .board { list-style: none; margin: 0; padding: 8px 12px 12px; }
   .board li { display: grid; grid-template-columns: 38px 1fr auto; gap: 10px; align-items: center; padding: 10px 2px; border-bottom: 1px solid var(--line2); }
   .board li:last-child { border-bottom: 0; }
-  .board .rank { font-family: 'Patrick Hand', cursive; font-size: 26px; text-align: center; }
-  .board .dn { font-family: 'Patrick Hand', cursive; font-size: 21px; line-height: 1.1; }
+  .board .rank { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 26px; text-align: center; }
+  .board .dn { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 21px; line-height: 1.1; }
   .board .by { color: var(--muted2); font-size: 13px; }
   .board .lbv { color: #f2c14e; font-weight: 800; font-size: 18px; }
   .board-empty { padding: 14px 16px 16px; color: var(--muted2); margin: 0; }
@@ -826,7 +826,7 @@ function rng(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 function hx(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
 function mix(a, b, t) { const A = hx(a), B = hx(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`; }
 const hsh = s => { let h = 7; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) | 0; return Math.abs(h); };
-const FONT = '"Patrick Hand","Comic Neue",cursive';
+const FONT = '"Fredoka","Nunito",sans-serif';
 const BULBS = ['#ff5a4f', '#ffd166', '#5fd38a', '#6ab8ff'];
 const R0 = rng(5);
 const TREES = []; for (let x = -60; x < 3200; x += 46 + R0() * 60) TREES.push({ x, s: .7 + R0() * .6, k: Math.floor(R0() * 4) });
