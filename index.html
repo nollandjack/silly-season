@@ -190,6 +190,16 @@
   .board .by { color: var(--muted2); font-size: 13px; }
   .board .lbv { color: #f2c14e; font-weight: 800; font-size: 18px; }
   .board-empty { padding: 14px 16px 16px; color: var(--muted2); margin: 0; }
+  .rules { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 12px 0; }
+  .rule { background: var(--panel2); border: 1px solid var(--line2); border-radius: 999px; padding: 5px 11px; font-weight: 800; font-size: 13px; }
+  .rules-note { margin: 10px 14px 12px; color: var(--muted2); font-size: 14px; }
+  .medals { display: grid; gap: 8px; margin-top: 12px; }
+  .medal { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; text-align: left; padding: 12px; border-radius: 14px; border: 1px solid var(--line2); background: var(--panel2); color: var(--snow); font: inherit; cursor: pointer; }
+  .medal .mi { grid-row: span 2; font-size: 28px; text-align: center; }
+  .medal .mt { font-weight: 800; }
+  .medal .mh { color: var(--muted2); font-size: 13px; overflow-wrap: anywhere; }
+  .medal.on { border-color: #f2c14e; background: rgba(242,193,78,.16); }
+  .vote span { font-size: 11px; }
 
   @keyframes sway { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
   @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
@@ -375,11 +385,10 @@ function render() {
       b.addEventListener('click', (ev) => openSlot(s, i, ev));
       if (filled && slot.dish) {
         const wrap = el('div', 'rowwrap');
-        const v = el('button', 'vote' + (slot.voted ? ' on' : '') + (votingOpen() ? '' : ' locked'));
+        const v = el('button', 'vote' + (slot.myRank ? ' on' : '') + (votingOpen() ? '' : ' locked'));
         v.type = 'button';
-        v.setAttribute('aria-pressed', slot.voted ? 'true' : 'false');
-        v.setAttribute('aria-label', 'Vote for ' + slot.dish);
-        v.append(document.createTextNode('🏆'), el('span', null, String(slot.votes || 0)));
+        v.setAttribute('aria-label', 'Vote for ' + slot.dish + (slot.myRank ? ', your ' + MEDALS[slot.myRank].name : ''));
+        v.append(document.createTextNode(slot.myRank ? MEDALS[slot.myRank].icon : '🏆'), el('span', null, (slot.points || 0) + ' pts'));
         v.addEventListener('click', (ev) => castVote(s, i, ev));
         wrap.append(b, v);
         rows.append(wrap);
@@ -395,25 +404,30 @@ function render() {
   const rk = el('section', 'card gold');
   rk.id = 'ranking';
   const rh = el('h2', null, '🏆 Ranking');
-  rh.append(el('small', null, votingOpen() ? 'tap 🏆 on a dish to vote' : 'opens at the party'));
+  rh.append(el('small', null, votingOpen() ? (state.voters || 0) + ' voted' : 'opens at the party'));
   rk.append(rh);
+  // The rules always show, even before voting opens.
+  const rules = el('div', 'rules');
+  [1, 2, 3].forEach(r => rules.append(el('span', 'rule', MEDALS[r].icon + ' ' + MEDALS[r].name + ' · ' + MEDALS[r].pts + (MEDALS[r].pts === 1 ? ' pt' : ' pts'))));
+  rk.append(rules);
+  rk.append(el('p', 'rules-note', votingOpen()
+    ? 'Tap 🏆 next to a dish to give it one of your 3 medals. Change them any time tonight.'
+    : 'Everyone gets 1 favourite and 2 runner-ups. Voting opens at the party, from 3pm Sunday 6 December. Taste everything first 👀'));
   const ranked = [];
-  state.sections.forEach(s => s.slots.forEach(x => { if (x.dish && x.votes) ranked.push({ ...x, course: s.key }); }));
-  ranked.sort((a, b) => b.votes - a.votes);
-  if (!ranked.length) {
-    rk.append(el('p', 'board-empty', votingOpen()
-      ? 'No votes yet. Tap 🏆 next to your favourite dishes. You can vote for as many as you like.'
-      : 'Voting opens at the party, from 3pm Sunday 6 December. Taste everything, then tap 🏆 on your favourites. A champion will be crowned 👑'));
-  } else {
+  state.sections.forEach(s => s.slots.forEach((x, i) => { if (x.dish && x.points) ranked.push({ ...x, course: s.key }); }));
+  ranked.sort((a, b) => b.points - a.points || b.golds - a.golds);
+  if (ranked.length) {
     const ol = el('ol', 'board');
     const medal = ['🥇', '🥈', '🥉'];
     let place = 0, prev = null;
     ranked.forEach((d, i) => {
-      if (d.votes !== prev) { place = i; prev = d.votes; }
+      const score = d.points + '|' + d.golds;
+      if (score !== prev) { place = i; prev = score; }
       const li = el('li');
       const info = el('span');
-      info.append(el('div', 'dn', (d.emoji ? d.emoji + ' ' : '') + d.dish), el('div', 'by', d.name || 'Someone'));
-      li.append(el('span', 'rank', medal[place] || String(place + 1)), info, el('span', 'lbv', String(d.votes)));
+      info.append(el('div', 'dn', (d.emoji ? d.emoji + ' ' : '') + d.dish),
+        el('div', 'by', (d.name || 'Someone') + (d.golds ? ' · ' + d.golds + ' × 🥇' : '')));
+      li.append(el('span', 'rank', medal[place] || String(place + 1)), info, el('span', 'lbv', d.points + ' pts'));
       ol.append(li);
     });
     rk.append(ol);
@@ -421,21 +435,64 @@ function render() {
   app.append(rk);
 }
 
-async function castVote(section, index, ev) {
+const MEDALS = {
+  1: { icon: '🥇', name: 'Favourite', pts: 3 },
+  2: { icon: '🥈', name: 'Runner-up', pts: 2 },
+  3: { icon: '🥉', name: 'Second runner-up', pts: 1 }
+};
+
+// Tapping 🏆 opens a picker to give this dish your favourite, runner-up or second runner-up medal.
+function castVote(section, index, ev) {
   if (!votingOpen()) { toast('🏆 Voting opens at the party, from 3pm on the 6th'); return; }
-  const btn = ev.currentTarget;
-  btn.disabled = true;
-  try {
-    const data = await api({ type: 'vote', section: section.key, index });
-    if (data.state) setState(data.state);
-    if (!data.ok) { toast(data.error || 'Could not vote, try again'); return; }
-    const slot = data.state.sections.find(s => s.key === section.key).slots[index];
-    if (slot.voted) { burst(ev.clientX || innerWidth / 2, ev.clientY || 200, '🏆'); cue('ting', 2); toast('Voted for ' + slot.dish + ' 🏆'); }
-    else toast('Vote taken back');
-  } catch (e) {
-    toast('Could not vote, check your connection');
-    btn.disabled = false;
-  }
+  const slot = section.slots[index];
+  const point = { x: ev.clientX || innerWidth / 2, y: ev.clientY || 200 };
+  const holder = (r) => {
+    for (const s of state.sections) for (const x of s.slots) if (x.myRank === r) return x.dish;
+    return '';
+  };
+  openSheet((sh) => {
+    sh.append(el('h3', null, '🏆 Vote for ' + slot.dish));
+    sh.append(el('div', 'what', 'You have 3 medals to hand out. Giving a medal here moves it from wherever it was.'));
+    const err = el('div', 'err');
+    const list = el('div', 'medals');
+    [1, 2, 3].forEach(r => {
+      const b = el('button', 'medal' + (slot.myRank === r ? ' on' : ''));
+      b.type = 'button';
+      const now = holder(r);
+      b.append(el('span', 'mi', MEDALS[r].icon), el('span', 'mt', MEDALS[r].name + ' · ' + MEDALS[r].pts + (MEDALS[r].pts === 1 ? ' pt' : ' pts')),
+        el('span', 'mh', slot.myRank === r ? 'This dish ✓' : now ? 'Currently: ' + now : 'Not given yet'));
+      b.onclick = () => send(r, b);
+      list.append(b);
+    });
+    sh.append(list);
+    const actions = el('div', 'actions');
+    if (slot.myRank) {
+      const rm = el('button', 'btn ghost', 'Take my medal back');
+      rm.type = 'button';
+      rm.onclick = () => send(0, rm);
+      actions.append(rm);
+    }
+    const close = el('button', 'btn ghost', 'Close');
+    close.type = 'button';
+    close.onclick = () => closeSheet();
+    actions.append(close);
+    sh.append(err, actions);
+
+    async function send(rank, btn) {
+      sh.querySelectorAll('button').forEach(x => { x.disabled = true; });
+      try {
+        const data = await api({ type: 'vote', section: section.key, index, rank });
+        if (data.state) setState(data.state);
+        if (!data.ok) throw new Error(data.error);
+        closeSheet(true);
+        if (rank) { burst(point.x, point.y, MEDALS[rank].icon); cue('ting', 3 - rank); toast(MEDALS[rank].icon + ' ' + slot.dish + ' is your ' + MEDALS[rank].name.toLowerCase()); }
+        else toast('Medal taken back');
+      } catch (e) {
+        err.textContent = e.message || 'Could not vote, check your connection';
+        sh.querySelectorAll('button').forEach(x => { x.disabled = false; });
+      }
+    }
+  });
 }
 
 function openAddGuest() {

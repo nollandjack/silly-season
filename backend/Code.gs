@@ -38,32 +38,45 @@ function findBlock_(values, match) {
 function emojiKey_(dish) { return 'emoji:' + String(dish).trim().toLowerCase().slice(0, 80); }
 function cachedEmoji_(dish) { return dish ? (props_().getProperty(emojiKey_(dish)) || '') : ''; }
 
-// Votes live in Script Properties as { "mains-2|eggplant parmagiana": ["voterId", ...] }.
+// Ranked voting. Each phone gets a favourite (3 points), a runner-up (2) and a second runner-up (1).
+// Ballots live in Script Properties as { "voterId": { "1": "mains-2|eggplant parmagiana", "2": "...", "3": "..." } }.
 // The key includes the dish, so if a spot changes hands its old votes no longer count.
+const POINTS = { 1: 3, 2: 2, 3: 1 };
 function voteKey_(section, index, dish) { return section + '-' + index + '|' + String(dish).trim().toLowerCase().slice(0, 60); }
-function readVotes_() { try { return JSON.parse(props_().getProperty('votes') || '{}'); } catch (err) { return {}; } }
+function readBallots_() { try { return JSON.parse(props_().getProperty('ballots') || '{}'); } catch (err) { return {}; } }
 
 function readState_(voter) {
   const v = sheet_().getDataRange().getDisplayValues();
-  const votes = readVotes_();
+  const ballots = readBallots_();
+  const tally = {};
+  Object.keys(ballots).forEach(id => Object.keys(ballots[id]).forEach(r => {
+    const k = ballots[id][r];
+    if (!tally[k]) tally[k] = { points: 0, golds: 0 };
+    tally[k].points += POINTS[r] || 0;
+    if (r === '1') tally[k].golds += 1;
+  }));
+  const mine = (voter && ballots[voter]) || {};
   const guests = findBlock_(v, 'guest list').map(i => ({ name: v[i][1], diet: v[i][2] }));
   const sections = SECTIONS.map(s => ({
     key: s.key,
     label: s.label,
     veg: s.veg,
     slots: findBlock_(v, s.match).map((i, n) => {
-      const list = v[i][2] ? (votes[voteKey_(s.key, n, v[i][2])] || []) : [];
+      const k = v[i][2] ? voteKey_(s.key, n, v[i][2]) : '';
+      const t = (k && tally[k]) || { points: 0, golds: 0 };
+      const myRank = k ? Number(Object.keys(mine).find(r => mine[r] === k) || 0) : 0;
       return {
         name: v[i][1],
         dish: v[i][2],
         veg: s.veg ? v[i][3] : '',
         emoji: cachedEmoji_(v[i][2]),
-        votes: list.length,
-        voted: !!voter && list.indexOf(voter) >= 0
+        points: t.points,
+        golds: t.golds,
+        myRank: myRank
       };
     })
   }));
-  return { guests: guests, sections: sections, claude: !!props_().getProperty('ANTHROPIC_API_KEY') };
+  return { guests: guests, sections: sections, voters: Object.keys(ballots).length, claude: !!props_().getProperty('ANTHROPIC_API_KEY') };
 }
 
 // Stops a guest's text from being read as a formula and keeps it short.
@@ -95,17 +108,23 @@ function doPost(e) {
       const i = s ? findBlock_(v, s.match)[req.index] : null;
       if (i == null || !v[i][2]) return json_({ ok: false, error: 'That dish is not there any more', state: readState_(voter) });
       if (!voter) return json_({ ok: false, error: 'Refresh the page and try again' });
-      const votes = readVotes_();
+      const rank = Number(req.rank);
+      if ([0, 1, 2, 3].indexOf(rank) < 0) return json_({ ok: false, error: 'Bad vote' });
+      const ballots = readBallots_();
+      const mine = ballots[voter] || {};
       const key = voteKey_(s.key, req.index, v[i][2]);
-      const list = votes[key] || [];
-      const at = list.indexOf(voter);
-      if (at >= 0) list.splice(at, 1); else list.push(voter);
-      votes[key] = list;
-      // Drop votes for dishes that are no longer on the list, so the store stays small.
+      // A dish can only hold one of your medals, and each medal goes to one dish.
+      Object.keys(mine).forEach(r => { if (mine[r] === key) delete mine[r]; });
+      if (rank) mine[String(rank)] = key;
+      // Drop medals pointing at dishes that are no longer on the list.
       const live = {};
       SECTIONS.forEach(x => findBlock_(v, x.match).forEach((r, n) => { if (v[r][2]) live[voteKey_(x.key, n, v[r][2])] = 1; }));
-      Object.keys(votes).forEach(k => { if (!live[k] || !votes[k].length) delete votes[k]; });
-      props_().setProperty('votes', JSON.stringify(votes));
+      Object.keys(ballots).forEach(id => {
+        Object.keys(ballots[id]).forEach(r => { if (!live[ballots[id][r]]) delete ballots[id][r]; });
+        if (!Object.keys(ballots[id]).length) delete ballots[id];
+      });
+      if (Object.keys(mine).length) ballots[voter] = mine; else delete ballots[voter];
+      props_().setProperty('ballots', JSON.stringify(ballots));
       return json_({ ok: true, state: readState_(voter) });
     }
     if (req.type === 'addGuest') {
