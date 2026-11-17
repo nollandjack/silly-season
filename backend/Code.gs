@@ -161,6 +161,11 @@ function ensureEmoji_(dish) {
   if (emoji) props_().setProperty(emojiKey_(dish), emoji);
 }
 
+// Run once from the editor after adding the API key, to give emoji to dishes added before Claude was on.
+function backfillEmoji() {
+  readState_().sections.forEach(s => s.slots.forEach(x => { if (x.dish && !x.emoji) ensureEmoji_(x.dish); }));
+}
+
 function ask_(req) {
   const question = String(req.question || '').trim().slice(0, 300);
   if (!question) return { ok: false, error: 'Ask a question first' };
