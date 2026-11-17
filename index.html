@@ -52,7 +52,7 @@
   .card h2 { margin: 0; padding: 12px 16px; font-family: Fraunces, Georgia, serif; font-size: 20px; color: #fff; display: flex; align-items: center; gap: 8px; }
   .card.red h2 { background: var(--berry); }
   .card.green h2 { background: var(--pine-2); }
-  .card h2 small { margin-left: auto; font-family: Nunito, sans-serif; font-size: 13px; font-weight: 800; opacity: .9; }
+  .card h2 small { white-space: nowrap; margin-left: auto; font-family: Nunito, sans-serif; font-size: 13px; font-weight: 800; opacity: .9; }
   .rows { padding: 6px 10px 10px; }
   .row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: var(--card); border-radius: 12px; padding: 12px; margin: 6px 0; font: inherit; color: inherit; cursor: pointer; border: 1px solid var(--line); min-height: 52px; }
   .row:active { transform: scale(.985); }
@@ -67,8 +67,16 @@
   .card.green .row.taken { background: var(--mint-soft); border-color: #c5e3cf; }
   .pill { font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: var(--pine-2); color: #fff; flex: none; }
   .pill.no { background: #d8d2c4; color: var(--ink); }
-  .guest .diet { color: var(--berry); font-weight: 700; font-size: 14px; }
+  .note { margin: 10px 14px 0; color: var(--muted); font-size: 14px; font-weight: 600; }
+  .guests { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px; }
+  @media (min-width: 480px) { .guests { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .guest { text-align: left; border: 1px solid #efc3bf; background: var(--berry-soft); border-radius: 12px; padding: 10px 12px; font: inherit; color: inherit; cursor: pointer; min-height: 52px; }
+  .guest:active { transform: scale(.97); }
+  .guest.in { background: var(--mint-soft); border-color: #c5e3cf; }
+  .guest .who { font-weight: 800; overflow-wrap: anywhere; }
+  .guest .diet { color: var(--berry); font-weight: 700; font-size: 13px; overflow-wrap: anywhere; }
   .guest .add { color: var(--muted); font-size: 13px; }
+  .row:focus-visible, .guest:focus-visible, .btn:focus-visible, .fab:focus-visible, .chip:focus-visible, .toggle button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
   .fab { position: fixed; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 5; border: 0; border-radius: 999px; padding: 14px 20px; background: var(--gold); color: #2b1d00; font: 800 16px Nunito, sans-serif; box-shadow: 0 10px 24px rgba(0,0,0,.3); cursor: pointer; animation: glow 2.4s ease-in-out infinite; }
 
@@ -157,7 +165,7 @@ async function load(quiet) {
     setState(data.state);
     $('status').textContent = 'Live from the sign-up sheet. Updates every 20 seconds.';
   } catch (e) {
-    if (!quiet) $('status').textContent = 'Could not load the sign-ups. Pull down to refresh in a moment.';
+    if (!quiet || !state) $('status').textContent = 'Could not load the sign-ups. It will try again shortly, or refresh the page.';
   }
 }
 
@@ -172,18 +180,24 @@ function render() {
   app.replaceChildren();
 
   // Guest list
+  // Who has signed up for at least one spot, matched on first name.
+  const first = (s) => String(s || '').trim().split(/\s+/)[0].toLowerCase();
+  const bringing = new Set();
+  state.sections.forEach(s => s.slots.forEach(x => { if (x.name) bringing.add(first(x.name)); }));
+  const count = state.guests.filter(gst => gst.name && bringing.has(first(gst.name))).length;
+
   const g = el('section', 'card red');
   const gh = el('h2', null, '🎅 Who\'s coming');
-  gh.append(el('small', null, state.guests.length + ' guests'));
+  gh.append(el('small', null, count + ' of ' + state.guests.length + ' ✅'));
   g.append(gh);
-  const gr = el('div', 'rows');
+  g.append(el('p', 'note', '✅ means they\'ve picked a dish. Tap your name to add dietary needs.'));
+  const gr = el('div', 'guests');
   state.guests.forEach((guest, i) => {
-    const b = el('button', 'row guest taken');
+    const isIn = !!guest.name && bringing.has(first(guest.name));
+    const b = el('button', 'guest' + (isIn ? ' in' : ''));
     b.type = 'button';
-    const main = el('div', 'main');
-    main.append(el('div', 'who', guest.name || 'Guest ' + (i + 1)));
-    main.append(guest.diet ? el('div', 'diet', guest.diet) : el('div', 'add', 'Tap to add dietary needs'));
-    b.append(el('span', 'num', String(i + 1)), main);
+    b.append(el('div', 'who', (isIn ? '✅ ' : '⬜ ') + (guest.name || 'Guest ' + (i + 1))));
+    b.append(guest.diet ? el('div', 'diet', guest.diet) : el('div', 'add', '+ dietary needs'));
     b.addEventListener('click', () => openDiet(i));
     gr.append(b);
   });
@@ -233,9 +247,12 @@ function renderSpread() {
   spread.replaceChildren();
   if (!dishes.length) {
     spread.append(el('span', 'hint', 'The table is empty. Be the first to bring something 🍽️'));
+    renderSpread.done = true;
+    knownDishes = new Set();
     return;
   }
-  const firstLoad = knownDishes.size === 0;
+  const firstLoad = !renderSpread.done;
+  renderSpread.done = true;
   dishes.forEach((d, i) => {
     const [emoji, name] = d.split('|');
     const isNew = !firstLoad && !knownDishes.has(d);
@@ -276,15 +293,29 @@ function openSheet(build) {
   sh.replaceChildren();
   build(sh);
   $('sheetBg').style.display = 'block';
+  document.body.style.overflow = 'hidden';
   requestAnimationFrame(() => sh.classList.add('open'));
   sheetOpen = true;
 }
 function closeSheet() {
   $('sheet').classList.remove('open');
   $('sheetBg').style.display = 'none';
+  document.body.style.overflow = '';
   sheetOpen = false;
 }
 $('sheetBg').addEventListener('click', closeSheet);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheetOpen) closeSheet(); });
+
+// Keep the pop-up above the phone keyboard (iOS leaves fixed elements behind it).
+if (window.visualViewport) {
+  const lift = () => {
+    const covered = window.innerHeight - visualViewport.height - visualViewport.offsetTop;
+    $('sheet').style.bottom = Math.max(0, covered) + 'px';
+    $('sheet').style.maxHeight = (visualViewport.height * 0.9) + 'px';
+  };
+  visualViewport.addEventListener('resize', lift);
+  visualViewport.addEventListener('scroll', lift);
+}
 
 function field(labelText, input) {
   const wrap = el('div');
@@ -301,7 +332,7 @@ function openSlot(section, index, ev) {
   const filled = !!(slot.name || slot.dish);
   const point = { x: ev.clientX || window.innerWidth / 2, y: ev.clientY || 200 };
   openSheet((sh) => {
-    sh.append(el('h3', null, (filled ? 'Edit ' : 'Bring ') + section.label.toLowerCase() + ' #' + (index + 1)));
+    sh.append(el('h3', null, section.label + ', spot ' + (index + 1)));
 
     const name = el('input');
     name.setAttribute('list', 'guestNames');
@@ -340,6 +371,11 @@ function openSlot(section, index, ev) {
       clear.type = 'button';
       clear.onclick = () => save({ name: '', dish: '', veg: '' }, clear, err);
       actions.append(clear);
+    } else {
+      const cancel = el('button', 'btn ghost', 'Cancel');
+      cancel.type = 'button';
+      cancel.onclick = closeSheet;
+      actions.append(cancel);
     }
     const go = el('button', 'btn go', filled ? 'Save changes' : 'Count me in 🎄');
     go.type = 'button';
@@ -425,7 +461,7 @@ function openAsk() {
     ['What\'s still missing?', 'A crowd-pleasing veg main?', 'Easy dessert that could win?', 'Cocktail idea for the group?'].forEach(text => {
       const c = el('button', 'chip', text);
       c.type = 'button';
-      c.onclick = () => { q.value = text; };
+      c.onclick = () => { q.value = text; go.click(); };
       chips.append(c);
     });
     sh.append(chips);
