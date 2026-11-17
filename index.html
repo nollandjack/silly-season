@@ -818,7 +818,7 @@ const COURSES = [
 ];
 const W = 400, H = 300, G = 238;
 const OB = 26, OM = 19, OH = 14, FB = 23, FM = 16.5, FH = 12.5;
-const LINE0 = 560, SP = 76, GAP = 46, CDX = 300;
+const LINE0 = 560, SP = 92, GAP = 52, CDX = 300;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const back = t => { t = clamp(t, 0, 1); const c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
@@ -1108,10 +1108,28 @@ function sign(c, x, co) {
   c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fdf2df'; c.fillText(`${co.emoji} ${co.short}s`, x, G - 36.5);
 }
 function clip(c, s, max) { if (c.measureText(s).width <= max) return s; while (s.length > 1 && c.measureText(s + '…').width > max) s = s.slice(0, -1); return s + '…'; }
+// Splits a dish name over up to three short lines so the whole name shows above the snowman.
+function wrapLines(c, s, max, maxLines) {
+  const words = String(s || '').split(/\s+/).filter(Boolean), lines = [];
+  let cur = '';
+  words.forEach(w => {
+    const tryLine = cur ? cur + ' ' + w : w;
+    if (c.measureText(tryLine).width <= max || !cur) cur = tryLine; else { lines.push(cur); cur = w; }
+  });
+  if (cur) lines.push(cur);
+  if (lines.length > maxLines) { lines.length = maxLines; lines[maxLines - 1] = clip(c, lines[maxLines - 1] + '…', max); }
+  return lines.map(l => clip(c, l, max));
+}
 function label(c, x, top, name, dish, me) {
-  c.textAlign = 'center'; c.textBaseline = 'middle'; c.shadowColor = 'rgba(8,12,32,.8)'; c.shadowBlur = 4;
-  c.font = `${me ? 15 : 13}px ${FONT}`; c.fillStyle = me ? '#ffd166' : '#fff'; c.fillText(clip(c, name, 64), x, top - 22);
-  c.font = `11px ${FONT}`; c.fillStyle = me ? '#ffe7a8' : '#d6e0f5'; c.fillText(clip(c, dish, 66), x, top - 10); c.shadowBlur = 0;
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.shadowColor = 'rgba(8,12,32,.85)'; c.shadowBlur = 4;
+  c.font = `11px ${FONT}`;
+  const lines = wrapLines(c, dish, me ? 96 : 80, 3);
+  const lh = 12, base = top - 8;
+  c.fillStyle = me ? '#ffe7a8' : '#d6e0f5';
+  lines.forEach((l, k) => c.fillText(l, x, base - (lines.length - 1 - k) * lh));
+  c.font = `${me ? 15 : 13}px ${FONT}`; c.fillStyle = me ? '#ffd166' : '#fff';
+  c.fillText(clip(c, name, me ? 96 : 80), x, base - lines.length * lh - 3);
+  c.shadowBlur = 0;
 }
 function text(c, s, x, y, size, col, a) { c.globalAlpha = a; c.font = `${size}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = col; c.fillText(s, x, y); c.globalAlpha = 1; }
 
