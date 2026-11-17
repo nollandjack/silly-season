@@ -87,6 +87,9 @@
   .guest .who { font-weight: 800; overflow-wrap: anywhere; }
   .guest .diet { color: var(--berry); font-weight: 700; font-size: 13px; overflow-wrap: anywhere; }
   .guest .add { color: var(--muted); font-size: 13px; }
+  .guest .ticks { font-size: 13px; margin: 2px 0; letter-spacing: 1px; color: var(--muted); }
+  .guest .nodiet { color: var(--pine-2); font-weight: 700; font-size: 13px; }
+  .quick { width: 100%; margin-top: 12px; padding: 13px; border-radius: 12px; border: 1px solid #c5e3cf; background: var(--mint-soft); color: var(--pine); font: 800 16px Nunito, sans-serif; cursor: pointer; }
   .row:focus-visible, .guest:focus-visible, .btn:focus-visible, .fab:focus-visible, .chip:focus-visible, .toggle button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
   .fab { position: fixed; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 5; border: 0; border-radius: 999px; padding: 14px 20px; background: var(--gold); color: #2b1d00; font: 800 16px Nunito, sans-serif; box-shadow: 0 10px 24px rgba(0,0,0,.3); cursor: pointer; animation: glow 2.4s ease-in-out infinite; }
@@ -111,7 +114,7 @@
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .chip { border: 1px solid #d9ccb2; background: #fff; border-radius: 999px; padding: 7px 11px; font: 600 13px Nunito, sans-serif; cursor: pointer; color: var(--ink); }
   .status { color: rgba(255,255,255,.8); text-align: center; font-size: 13px; margin-top: 18px; }
-  .toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%) translateY(-120%); background: #fff; color: var(--ink); padding: 10px 16px; border-radius: 999px; font-weight: 800; z-index: 20; transition: transform .3s ease; box-shadow: 0 8px 20px rgba(0,0,0,.25); }
+  .toast { white-space: nowrap; position: fixed; left: 50%; top: 16px; transform: translateX(-50%) translateY(-120%); background: #fff; color: var(--ink); padding: 10px 16px; border-radius: 999px; font-weight: 800; z-index: 20; transition: transform .3s ease; box-shadow: 0 8px 20px rgba(0,0,0,.25); }
   .toast.show { transform: translateX(-50%) translateY(0); }
   .burst { position: fixed; z-index: 30; pointer-events: none; font-size: 26px; animation: fly 1.2s ease-out forwards; }
 
@@ -208,22 +211,26 @@ function render() {
   // Guest list
   // Who has signed up for at least one spot, matched on first name.
   const first = (s) => String(s || '').trim().split(/\s+/)[0].toLowerCase();
-  const bringing = new Set();
-  state.sections.forEach(s => s.slots.forEach(x => { if (x.name) bringing.add(first(x.name)); }));
+  const bringing = new Map();
+  state.sections.forEach(s => s.slots.forEach(x => {
+    if (x.name) bringing.set(first(x.name), (bringing.get(first(x.name)) || 0) + 1);
+  }));
   const count = state.guests.filter(gst => gst.name && bringing.has(first(gst.name))).length;
 
   const g = el('section', 'card red');
   const gh = el('h2', null, '🎅 Who\'s coming');
   gh.append(el('small', null, count + ' of ' + state.guests.length + ' ✅'));
   g.append(gh);
-  g.append(el('p', 'note', '✅ means they\'ve picked a dish. Tap your name to add dietary needs.'));
+  g.append(el('p', 'note', 'One ✅ for each thing someone is bringing. Tap your name to add dietary needs.'));
   const gr = el('div', 'guests');
   state.guests.forEach((guest, i) => {
-    const isIn = !!guest.name && bringing.has(first(guest.name));
-    const b = el('button', 'guest' + (isIn ? ' in' : ''));
+    const n = guest.name ? (bringing.get(first(guest.name)) || 0) : 0;
+    const b = el('button', 'guest' + (n ? ' in' : ''));
     b.type = 'button';
-    b.append(el('div', 'who', (isIn ? '✅ ' : '⬜ ') + (guest.name || 'Guest ' + (i + 1))));
-    b.append(guest.diet ? el('div', 'diet', guest.diet) : el('div', 'add', '+ dietary needs'));
+    b.append(el('div', 'who', guest.name || 'Guest ' + (i + 1)));
+    b.append(el('div', 'ticks', n ? '✅'.repeat(Math.min(n, 6)) : '⬜ nothing yet'));
+    if (isNoDiet(guest.diet)) b.append(el('div', 'nodiet', 'No dietary needs 👍'));
+    else b.append(guest.diet ? el('div', 'diet', guest.diet) : el('div', 'add', '+ dietary needs'));
     b.addEventListener('click', () => openDiet(i));
     gr.append(b);
   });
@@ -439,26 +446,35 @@ function openSlot(section, index, ev) {
   });
 }
 
+function isNoDiet(d) { return /^(none|nil|no|n\/a|nothing|no dietary needs)\.?$/i.test(String(d || '').trim()); }
+
 function openDiet(index) {
   const guest = state.guests[index];
   openSheet((sh) => {
     sh.append(el('h3', null, 'Dietary needs for ' + (guest.name || 'guest ' + (index + 1))));
+    const err = el('div', 'err');
+    const none = el('button', 'quick', '👍 No dietary needs');
+    none.type = 'button';
+    none.onclick = () => saveDiet('None', none);
+    sh.append(none);
     const diet = el('input');
     diet.placeholder = 'e.g. vegetarian, no nuts, gluten free';
-    diet.value = guest.diet || '';
-    sh.append(field('Anything the cooks should know?', diet));
-    const err = el('div', 'err');
+    diet.value = isNoDiet(guest.diet) ? '' : (guest.diet || '');
+    sh.append(field('Or tell the cooks what to know', diet));
     const actions = el('div', 'actions');
     const cancel = el('button', 'btn ghost', 'Cancel');
     cancel.type = 'button';
     cancel.onclick = closeSheet;
     const go = el('button', 'btn go', 'Save');
     go.type = 'button';
-    go.onclick = async () => {
+    go.onclick = () => saveDiet(diet.value, go);
+    async function saveDiet(value, btn) {
+      const go = btn;
+      const old = go.textContent;
       go.disabled = true;
       go.textContent = 'Saving…';
       try {
-        const data = await api({ type: 'diet', index, diet: diet.value });
+        const data = await api({ type: 'diet', index, diet: value });
         if (data.state) setState(data.state);
         if (!data.ok) throw new Error(data.error);
         closeSheet();
@@ -466,12 +482,11 @@ function openDiet(index) {
       } catch (e) {
         err.textContent = 'Could not save. Try again in a moment.';
         go.disabled = false;
-        go.textContent = 'Save';
+        go.textContent = old;
       }
-    };
+    }
     actions.append(cancel, go);
     sh.append(err, actions);
-    setTimeout(() => diet.focus(), 300);
   });
 }
 
